@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AimPulse - FPS 靈敏度換算與反應靶場</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyberDark: '#0B0F19',
+            cyberCard: '#1E293B',
+            cyberCyan: '#06B6D4',
+            cyberEmerald: '#10B981',
+            cyberAmber: '#F59E0B',
+            cyberRed: '#EF4444'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: #0B0F19;
+      color: #F3F4F6;
+    }
+    .font-chakra {
+      font-family: 'Chakra Petch', sans-serif;
+    }
+    /* 劇院備援全螢幕模式 */
+    .theater-mode {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 50 !important;
+      background-color: #0B0F19 !important;
+      border-radius: 0 !important;
+      margin: 0 !important;
+      padding: 1rem !important;
+    }
+    .theater-canvas {
+      width: 100% !important;
+      height: calc(100vh - 110px) !important;
+    }
+    /* 倒數 3 秒動畫特效 */
+    @keyframes pulsePop {
+      0% { transform: scale(0.6); opacity: 0; }
+      50% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1.0); opacity: 1; }
+    }
+    .animate-countdown-pop {
+      animation: pulsePop 0.35s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="22" y1="12" x2="18" y2="12"></line>
+            <line x1="6" y1="12" x2="2" y2="12"></line>
+            <line x1="12" y1="6" x2="12" y2="2"></line>
+            <line x1="12" y1="22" x2="12" y2="18"></line>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold font-chakra tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">AimPulse</h1>
+          <p class="text-xs text-slate-400 font-mono">FPS Sensitivity Converter & Mini Aim Trainer</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-cyan-950/80 text-cyan-400 border border-cyan-800/50">
+          v1.7 Ready
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Grid -->
+  <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: 靈敏度換算面板 (4 Cols) -->
+    <section class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm flex flex-col justify-between">
+      <div>
+        <div class="flex items-center space-x-2 mb-4 pb-3 border-b border-slate-800">
+          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+          </svg>
+          <h2 class="text-lg font-bold text-slate-100">靈敏度精準換算</h2>
+        </div>
+
+        <div class="space-y-4">
+          <!-- 來源遊戲 -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">來源遊戲 (Source)</label>
+            <div class="relative">
+              <select id="sourceGame" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition">
+                <option value="cs2" selected>Counter-Strike 2 (CS2)</option>
+                <option value="valorant">Valorant</option>
+                <option value="apex">Apex Legends</option>
+                <option value="overwatch2">Overwatch 2</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 滑鼠 DPI -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">滑鼠硬體 DPI</label>
+              <div class="space-x-1">
+                <button type="button" onclick="setDPI(400)" class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">400</button>
+                <button type="button" onclick="setDPI(800)" class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">800</button>
+                <button type="button" onclick="setDPI(1600)" class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">1600</button>
+              </div>
+            </div>
+            <input type="number" id="mouseDPI" value="800" min="100" max="32000" step="50" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-chakra font-medium text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition">
+          </div>
+
+          <!-- 遊戲內靈敏度 -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">來源遊戲 Sensitivity</label>
+            <input type="number" id="sourceSens" value="1.25" min="0.001" max="100" step="0.01" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-chakra font-medium text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition">
+          </div>
+
+          <!-- 目標遊戲 -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">目標遊戲 (Target)</label>
+            <select id="targetGame" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition">
+              <option value="valorant" selected>Valorant</option>
+              <option value="cs2">Counter-Strike 2 (CS2)</option>
+              <option value="apex">Apex Legends</option>
+              <option value="overwatch2">Overwatch 2</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 換算輸出卡片 -->
+        <div class="mt-6 p-4 rounded-xl bg-gradient-to-b from-slate-800/80 to-slate-800/30 border border-cyan-500/20 shadow-inner">
+          <div class="text-xs text-slate-400 font-semibold mb-1">目標遊戲建議靈敏度</div>
+          <div class="flex items-baseline space-x-2">
+            <span id="targetSensOutput" class="text-3xl font-bold font-chakra text-cyan-400">0.393</span>
+            <span id="targetGameTag" class="text-xs text-slate-400 font-medium">(Valorant)</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-700/60 text-xs">
+            <div>
+              <span class="text-slate-400 block mb-0.5">有效 eDPI</span>
+              <span id="edpiOutput" class="text-base font-bold font-chakra text-emerald-400">1000.0</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-0.5">360° 物理轉身</span>
+              <span id="cm360Output" class="text-base font-bold font-chakra text-purple-400">41.56 cm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 text-[11px] text-slate-500 text-center">
+        基準 Yaw: CS2/Apex 0.022° | Val 0.07° | OW2 0.0066°
+      </div>
+    </section>
+
+    <!-- Right Column: Canvas 練槍互動靶場 (8 Cols) -->
+    <section id="trainerContainer" class="lg:col-span-8 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm flex flex-col justify-between transition-all duration-300">
+      
+      <!-- 頂部數據儀表板 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-800">
+        <div class="flex items-center space-x-3 sm:space-x-4 font-chakra">
+          <div>
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">倒數時間</div>
+            <div id="displayTime" class="text-xl sm:text-2xl font-bold text-amber-400">30.0s</div>
+          </div>
+          <div class="h-8 w-px bg-slate-800"></div>
+          <div>
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">命中 / 脫靶</div>
+            <div class="text-lg sm:text-xl font-bold text-slate-200">
+              <span id="displayHits" class="text-emerald-400">0</span>
+              <span class="text-slate-500">/</span>
+              <span id="displayMisses" class="text-rose-400">0</span>
+            </div>
+          </div>
+          <div class="h-8 w-px bg-slate-800"></div>
+          <div>
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">準確率</div>
+            <div id="displayAccuracy" class="text-lg sm:text-xl font-bold text-cyan-400">100%</div>
+          </div>
+          <div class="h-8 w-px bg-slate-800"></div>
+          <div>
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">平均反應 (RT)</div>
+            <div id="displayAvgReaction" class="text-lg sm:text-xl font-bold text-amber-300">--ms</div>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <!-- 放大 / 全螢幕切換按鈕 -->
+          <button id="toggleFullscreenBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition">
+            <svg id="fullscreenIcon" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+            </svg>
+            <span id="fullscreenText">全螢幕專注</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas 繪圖區 -->
+      <div class="relative w-full flex-1 flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden border border-slate-800/80 shadow-inner min-h-[360px]">
+        <canvas id="aimCanvas" width="800" height="450" class="w-full h-full max-h-[480px] cursor-crosshair block"></canvas>
+
+        <!-- 3 秒預備倒數覆蓋層 (3-2-1 Ready Countdown) -->
+        <div id="overlayCountdown" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md hidden flex flex-col items-center justify-center p-6 text-center z-20">
+          <div class="text-xs font-chakra font-semibold text-cyan-400 tracking-widest uppercase mb-2">Get Ready</div>
+          <div id="countdownNumber" class="text-7xl sm:text-9xl font-bold font-chakra text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 filter drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] animate-countdown-pop">
+            3
+          </div>
+          <p class="text-xs text-slate-400 mt-4 font-mono">準備點擊瞄準標靶...</p>
+        </div>
+
+        <!-- 初始引導覆蓋層 -->
+        <div id="overlayStart" class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-10">
+          <div class="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-4 text-cyan-400 shadow-lg shadow-cyan-500/10">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" stroke-width="2"></circle>
+              <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <h3 class="text-2xl font-bold font-chakra text-white mb-2">準備開始反應射擊測試</h3>
+          <p class="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+            按下開始後將進行 3 秒預備倒數。正式開始後每局 30 秒，請盡可能維持最高準確率與最快反應！
+          </p>
+          <div class="flex items-center space-x-3">
+            <button id="btnStartGame" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold font-chakra tracking-wide shadow-lg shadow-cyan-500/25 transition transform active:scale-95">
+              立即開始 (Start)
+            </button>
+            <button id="btnStartFullscreen" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 font-semibold font-chakra text-sm transition transform active:scale-95">
+              全螢幕放大專注開始
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部控制與提示 -->
+      <div class="flex items-center justify-between mt-3 text-xs text-slate-400">
+        <div class="flex items-center space-x-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>Web Audio 原生合成音效已啟用</span>
+        </div>
+        <div class="text-slate-500 font-mono">
+          按 ESC 鍵可隨時退出全螢幕
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 成果結算 Modal (置頂 z-[100]) -->
+  <div id="resultModal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      
+      <!-- 右上角關閉叉叉按鈕 -->
+      <button id="btnCloseModalX" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition" title="結束並關閉">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+
+      <div class="text-center">
+        <div id="modalBadgeIcon" class="w-20 h-20 mx-auto mb-3 flex items-center justify-center"></div>
+
+        <div id="modalRankTitle" class="text-2xl font-bold font-chakra text-emerald-400 tracking-wider">
+          S 級 (Radiant)
+        </div>
+        <p class="text-xs text-slate-400 mt-1 font-mono">AIM TEST COMPLETED</p>
+
+        <!-- 數據網格 -->
+        <div class="grid grid-cols-3 gap-2 my-5 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60 font-chakra">
+          <div>
+            <div class="text-[10px] text-slate-400">總命中 Hits</div>
+            <div id="modalHits" class="text-xl font-bold text-white mt-0.5">42</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-slate-400">準確率 Acc</div>
+            <div id="modalAcc" class="text-xl font-bold text-cyan-400 mt-0.5">93.3%</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-slate-400">平均反應 RT</div>
+            <div id="modalAvgTime" class="text-xl font-bold text-amber-400 mt-0.5">380ms</div>
+          </div>
+        </div>
+
+        <!-- 功能控制按鈕群 -->
+        <div class="space-y-2.5">
+          <button id="btnCopyShare" class="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-chakra text-sm shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+            </svg>
+            <span id="copyBtnText">一鍵複製成績</span>
+          </button>
+          
+          <button id="btnRestart" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold font-chakra text-sm border border-slate-700 transition flex items-center justify-center space-x-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            <span>再練一局 (Play Again)</span>
+          </button>
+
+          <!-- 結束 / 返回待機按鈕 -->
+          <button id="btnFinishExit" class="w-full py-2 rounded-xl bg-transparent hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 text-xs font-medium font-chakra transition flex items-center justify-center space-x-1.5 border border-transparent hover:border-slate-800">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            <span>結束測試 · 返回主畫面 (Finish & Exit)</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="border-t border-slate-800/80 bg-slate-950/60 py-3 text-center text-xs text-slate-500 font-mono">
+    AimPulse • Built with Vibe Coding • Responsive Single-File Canvas App
+  </footer>
+
+  <script>
+    /* =========================================================
+       1. 靈敏度換算邏輯與常數 (嚴格依據遊戲 Yaw 係數)
+       ========================================================= */
+    const YAW_TABLE = {
+      cs2: 0.022,
+      apex: 0.022,
+      valorant: 0.07,
+      overwatch2: 0.0066
+    };
+
+    const sourceGameEl = document.getElementById('sourceGame');
+    const targetGameEl = document.getElementById('targetGame');
+    const mouseDPIEl = document.getElementById('mouseDPI');
+    const sourceSensEl = document.getElementById('sourceSens');
+
+    const targetSensOutputEl = document.getElementById('targetSensOutput');
+    const targetGameTagEl = document.getElementById('targetGameTag');
+    const edpiOutputEl = document.getElementById('edpiOutput');
+    const cm360OutputEl = document.getElementById('cm360Output');
+
+    function calculateSensitivity() {
+      const srcGame = sourceGameEl.value;
+      const tgtGame = targetGameEl.value;
+      const dpi = parseFloat(mouseDPIEl.value) || 800;
+      const sens = parseFloat(sourceSensEl.value) || 1.0;
+
+      const srcYaw = YAW_TABLE[srcGame];
+      const tgtYaw = YAW_TABLE[tgtGame];
+
+      const targetSens = sens * (srcYaw / tgtYaw);
+      targetSensOutputEl.innerText = targetSens.toFixed(3);
+      targetGameTagEl.innerText = `(${targetGameEl.options[targetGameEl.selectedIndex].text.split(' ')[0]})`;
+
+      const edpi = dpi * sens;
+      edpiOutputEl.innerText = edpi.toFixed(1);
+
+      const cm360 = (360 * 2.54) / (dpi * sens * srcYaw);
+      cm360OutputEl.innerText = isFinite(cm360) ? `${cm360.toFixed(2)} cm` : '-- cm';
+    }
+
+    function setDPI(val) {
+      mouseDPIEl.value = val;
+      calculateSensitivity();
+    }
+
+    [sourceGameEl, targetGameEl, mouseDPIEl, sourceSensEl].forEach(el => {
+      el.addEventListener('input', calculateSensitivity);
+      el.addEventListener('change', calculateSensitivity);
+    });
+
+    calculateSensitivity();
+
+    /* =========================================================
+       2. Web Audio API 音效合成
+       ========================================================= */
+    let audioCtx = null;
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playBeep(freq = 440, duration = 0.08) {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playHitSound() {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } catch (e) {}
+    }
+
+    function playMissSound() {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(80, ctx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.09);
+      } catch (e) {}
+    }
+
+    /* =========================================================
+       3. Canvas 練槍引擎 (含 3 秒預備倒數)
+       ========================================================= */
+    const canvas = document.getElementById('aimCanvas');
+    const ctx = canvas.getContext('2d');
+    const trainerContainer = document.getElementById('trainerContainer');
+    const overlayStart = document.getElementById('overlayStart');
+    const overlayCountdown = document.getElementById('overlayCountdown');
+    const countdownNumber = document.getElementById('countdownNumber');
+
+    const btnStartGame = document.getElementById('btnStartGame');
+    const btnStartFullscreen = document.getElementById('btnStartFullscreen');
+    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
+    const fullscreenText = document.getElementById('fullscreenText');
+
+    const displayTime = document.getElementById('displayTime');
+    const displayHits = document.getElementById('displayHits');
+    const displayMisses = document.getElementById('displayMisses');
+    const displayAccuracy = document.getElementById('displayAccuracy');
+    const displayAvgReaction = document.getElementById('displayAvgReaction');
+
+    const resultModal = document.getElementById('resultModal');
+    const modalHits = document.getElementById('modalHits');
+    const modalAcc = document.getElementById('modalAcc');
+    const modalAvgTime = document.getElementById('modalAvgTime');
+    const modalRankTitle = document.getElementById('modalRankTitle');
+    const modalBadgeIcon = document.getElementById('modalBadgeIcon');
+    const btnCopyShare = document.getElementById('btnCopyShare');
+    const copyBtnText = document.getElementById('copyBtnText');
+    const btnRestart = document.getElementById('btnRestart');
+    const btnFinishExit = document.getElementById('btnFinishExit');
+    const btnCloseModalX = document.getElementById('btnCloseModalX');
+
+    let isPlaying = false;
+    let isCountingDown = false;
+    let isFullscreenMode = false;
+    let gameTimer = null;
+    let countdownTimer = null;
+    let timeLeft = 30;
+    let hits = 0;
+    let misses = 0;
+    let reactionTimes = [];
+    let targetSpawnTime = 0;
+
+    let currentTarget = null;
+    let particles = [];
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      if (currentTarget) {
+        clampTargetInBounds();
+      }
+    });
+
+    function spawnTarget() {
+      const rect = canvas.getBoundingClientRect();
+      const baseRadius = 33 + Math.random() * 12; // 33 ~ 45px
+      const scaleMultiplier = isFullscreenMode ? 2.0 : 1.0;
+      const radius = baseRadius * scaleMultiplier;
+
+      const padding = radius + 20;
+      const x = padding + Math.random() * (rect.width - padding * 2);
+      const y = padding + Math.random() * (rect.height - padding * 2);
+
+      currentTarget = {
+        x: x,
+        y: y,
+        radius: radius,
+        baseRadius: baseRadius,
+        birth: Date.now()
+      };
+      targetSpawnTime = performance.now();
+    }
+
+    function clampTargetInBounds() {
+      if (!currentTarget) return;
+      const rect = canvas.getBoundingClientRect();
+      const mult = isFullscreenMode ? 2.0 : 1.0;
+      currentTarget.radius = currentTarget.baseRadius * mult;
+      const r = currentTarget.radius;
+      if (currentTarget.x < r + 10) currentTarget.x = r + 10;
+      if (currentTarget.x > rect.width - r - 10) currentTarget.x = rect.width - r - 10;
+      if (currentTarget.y < r + 10) currentTarget.y = r + 10;
+      if (currentTarget.y > rect.height - r - 10) currentTarget.y = rect.height - r - 10;
+    }
+
+    function createExplosion(x, y, color) {
+      const pCount = isFullscreenMode ? 24 : 16;
+      for (let i = 0; i < pCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = (2 + Math.random() * 4) * (isFullscreenMode ? 1.5 : 1.0);
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: (2 + Math.random() * 2) * (isFullscreenMode ? 1.4 : 1.0),
+          alpha: 1,
+          decay: 0.03 + Math.random() * 0.02,
+          color: color
+        });
+      }
+    }
+
+    function renderLoop() {
+      if (!isPlaying) return;
+
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let gx = 0; gx < rect.width; gx += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, rect.height);
+        ctx.stroke();
+      }
+      for (let gy = 0; gy < rect.height; gy += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(rect.width, gy);
+        ctx.stroke();
+      }
+
+      if (currentTarget) {
+        const { x, y, radius } = currentTarget;
+
+        const grad = ctx.createRadialGradient(x, y, radius * 0.4, x, y, radius * 1.3);
+        grad.addColorStop(0, 'rgba(6, 182, 212, 0.6)');
+        grad.addColorStop(0.7, 'rgba(16, 185, 129, 0.4)');
+        grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 1.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#06B6D4';
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#EF4444';
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x - radius * 1.1, y);
+        ctx.lineTo(x + radius * 1.1, y);
+        ctx.moveTo(x, y - radius * 1.1);
+        ctx.lineTo(x, y + radius * 1.1);
+        ctx.stroke();
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // 點擊事件：若處於 3 秒倒數中則忽略點擊
+    canvas.addEventListener('mousedown', (e) => {
+      if (!isPlaying || isCountingDown) return;
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      if (currentTarget) {
+        const dx = clickX - currentTarget.x;
+        const dy = clickY - currentTarget.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= currentTarget.radius) {
+          hits++;
+          const rt = performance.now() - targetSpawnTime;
+          reactionTimes.push(rt);
+          playHitSound();
+          createExplosion(currentTarget.x, currentTarget.y, '#10B981');
+          spawnTarget();
+        } else {
+          misses++;
+          playMissSound();
+          createExplosion(clickX, clickY, '#EF4444');
+        }
+        updateScoreboard();
+      }
+    });
+
+    function updateScoreboard() {
+      displayHits.innerText = hits;
+      displayMisses.innerText = misses;
+      const total = hits + misses;
+      const acc = total > 0 ? ((hits / total) * 100).toFixed(1) : 100;
+      displayAccuracy.innerText = `${acc}%`;
+
+      if (reactionTimes.length > 0) {
+        const avgRT = Math.round(reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length);
+        displayAvgReaction.innerText = `${avgRT}ms`;
+      } else {
+        displayAvgReaction.innerText = '--ms';
+      }
+    }
+
+    /* 3 秒預備倒數邏輯 */
+    function initiatePreCountdown() {
+      getAudioContext();
+      resizeCanvas();
+      
+      // 清空畫布與舊計時器
+      clearInterval(gameTimer);
+      clearInterval(countdownTimer);
+      isPlaying = false;
+      isCountingDown = true;
+      currentTarget = null;
+      particles = [];
+
+      overlayStart.classList.add('hidden');
+      resultModal.classList.add('hidden');
+      overlayCountdown.classList.remove('hidden');
+
+      displayTime.innerText = '30.0s';
+      displayHits.innerText = '0';
+      displayMisses.innerText = '0';
+      displayAccuracy.innerText = '100%';
+      displayAvgReaction.innerText = '--ms';
+
+      let count = 3;
+      countdownNumber.innerText = count;
+      countdownNumber.className = 'text-7xl sm:text-9xl font-bold font-chakra text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 filter drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] animate-countdown-pop';
+      playBeep(440, 0.08);
+
+      countdownTimer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownNumber.innerText = count;
+          // 重置動畫
+          countdownNumber.classList.remove('animate-countdown-pop');
+          void countdownNumber.offsetWidth;
+          countdownNumber.classList.add('animate-countdown-pop');
+          playBeep(440, 0.08);
+        } else if (count === 0) {
+          countdownNumber.innerText = 'GO!';
+          countdownNumber.classList.remove('animate-countdown-pop');
+          void countdownNumber.offsetWidth;
+          countdownNumber.classList.add('animate-countdown-pop');
+          playBeep(880, 0.15);
+        } else {
+          clearInterval(countdownTimer);
+          overlayCountdown.classList.add('hidden');
+          isCountingDown = false;
+          startActualGame();
+        }
+      }, 1000);
+    }
+
+    /* 正式開始 30 秒遊戲 */
+    function startActualGame() {
+      isPlaying = true;
+      timeLeft = 30;
+      hits = 0;
+      misses = 0;
+      reactionTimes = [];
+      particles = [];
+      updateScoreboard();
+
+      spawnTarget();
+      requestAnimationFrame(renderLoop);
+
+      const startTime = Date.now();
+      gameTimer = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const remain = Math.max(0, 30 - elapsed);
+        displayTime.innerText = `${remain.toFixed(1)}s`;
+
+        if (remain <= 0) {
+          clearInterval(gameTimer);
+          endGame();
+        }
+      }, 100);
+    }
+
+    function endGame() {
+      isPlaying = false;
+      currentTarget = null;
+
+      if (isFullscreenMode) {
+        exitFullscreenAndTheater();
+      }
+
+      const total = hits + misses;
+      const accuracy = total > 0 ? (hits / total) * 100 : 0;
+      const avgReaction = reactionTimes.length > 0
+        ? Math.round(reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length)
+        : 0;
+
+      modalHits.innerText = hits;
+      modalAcc.innerText = `${accuracy.toFixed(1)}%`;
+      modalAvgTime.innerText = `${avgReaction}ms`;
+
+      let rank = 'C 級 (Bronze / Silver)';
+      let rankColor = 'text-amber-600';
+      let badgeSVG = `
+        <svg class="w-16 h-16 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+      `;
+
+      if (hits >= 45 && accuracy >= 90) {
+        rank = 'S 級 (Radiant / The Global Elite)';
+        rankColor = 'text-cyan-400';
+        badgeSVG = `
+          <svg class="w-16 h-16 text-cyan-400 filter drop-shadow(0 0 8px rgba(6,182,212,0.8))" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L1 21h22L12 2zm0 3.8l7.53 13.2H4.47L12 5.8z"/>
+            <polygon points="12,8 15,14 9,14" fill="#10B981"/>
+          </svg>
+        `;
+      } else if (hits >= 35 && accuracy >= 80) {
+        rank = 'A 級 (Diamond / Master)';
+        rankColor = 'text-emerald-400';
+        badgeSVG = `
+          <svg class="w-16 h-16 text-emerald-400 filter drop-shadow(0 0 8px rgba(16,185,129,0.8))" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="12 2 22 12 12 22 2 12"/>
+          </svg>
+        `;
+      } else if (hits >= 25) {
+        rank = 'B 級 (Gold / Platinum)';
+        rankColor = 'text-amber-400';
+        badgeSVG = `
+          <svg class="w-16 h-16 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="3" y="3" width="18" height="18" rx="4"/>
+          </svg>
+        `;
+      }
+
+      modalRankTitle.className = `text-2xl font-bold font-chakra tracking-wider ${rankColor}`;
+      modalRankTitle.innerText = rank;
+      modalBadgeIcon.innerHTML = badgeSVG;
+
+      resultModal.classList.remove('hidden');
+    }
+
+    function returnToHome() {
+      resultModal.classList.add('hidden');
+      overlayCountdown.classList.add('hidden');
+      isPlaying = false;
+      isCountingDown = false;
+      currentTarget = null;
+      particles = [];
+      clearInterval(gameTimer);
+      clearInterval(countdownTimer);
+
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      displayTime.innerText = '30.0s';
+      displayHits.innerText = '0';
+      displayMisses.innerText = '0';
+      displayAccuracy.innerText = '100%';
+      displayAvgReaction.innerText = '--ms';
+
+      overlayStart.classList.remove('hidden');
+    }
+
+    /* =========================================================
+       4. 全螢幕與劇院模式切換邏輯
+       ========================================================= */
+    function enterFullscreenAndTheater() {
+      isFullscreenMode = true;
+      fullscreenText.innerText = '退出全螢幕 (ESC)';
+      trainerContainer.classList.add('theater-mode');
+      canvas.classList.add('theater-canvas');
+
+      if (trainerContainer.requestFullscreen) {
+        trainerContainer.requestFullscreen().catch(() => {});
+      }
+      setTimeout(() => {
+        resizeCanvas();
+        clampTargetInBounds();
+      }, 50);
+    }
+
+    function exitFullscreenAndTheater() {
+      isFullscreenMode = false;
+      fullscreenText.innerText = '全螢幕專注';
+      trainerContainer.classList.remove('theater-mode');
+      canvas.classList.remove('theater-canvas');
+
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setTimeout(() => {
+        resizeCanvas();
+        clampTargetInBounds();
+      }, 50);
+    }
+
+    function toggleFullscreen() {
+      if (!isFullscreenMode) {
+        enterFullscreenAndTheater();
+      } else {
+        exitFullscreenAndTheater();
+      }
+    }
+
+    toggleFullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    btnStartFullscreen.addEventListener('click', () => {
+      enterFullscreenAndTheater();
+      initiatePreCountdown();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isFullscreenMode) {
+        exitFullscreenAndTheater();
+      }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && isFullscreenMode) {
+        exitFullscreenAndTheater();
+      }
+    });
+
+    btnStartGame.addEventListener('click', initiatePreCountdown);
+
+    btnRestart.addEventListener('click', () => {
+      resultModal.classList.add('hidden');
+      initiatePreCountdown();
+    });
+
+    btnFinishExit.addEventListener('click', returnToHome);
+    btnCloseModalX.addEventListener('click', returnToHome);
+
+    btnCopyShare.addEventListener('click', () => {
+      const rankText = modalRankTitle.innerText;
+      const textToCopy = `【AimPulse 練槍成績】命中: ${hits} | 脫靶: ${misses} | 準確率: ${modalAcc.innerText} | 平均反應: ${modalAvgTime.innerText} | 段位: ${rankText}！`;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        copyBtnText.innerText = '已複製到剪貼簿！';
+        setTimeout(() => {
+          copyBtnText.innerText = '一鍵複製成績';
+        }, 2000);
+      });
+    });
+
+    window.addEventListener('load', () => {
+      resizeCanvas();
+    });
+  </script>
+</body>
+</html>
